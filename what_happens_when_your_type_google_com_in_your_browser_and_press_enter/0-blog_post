@@ -1,0 +1,77 @@
+# What Happens When You Type "https://www.google.com" and Press Enter?
+
+It looks like a trivial, everyday action — you type a URL into your browser and a web page appears less than a second later. But behind that one second, a surprising amount of engineering is quietly doing its job: naming systems, security protocols, distributed networks, and layers of servers all cooperating to get you your search page. This post walks through that journey step by step.
+
+## 1. DNS Request — Turning a Name into an Address
+
+Computers don't route traffic using names like `www.google.com`; they route it using IP addresses, like `142.250.premium.100`. So the very first thing that has to happen is translating the human-readable domain name into a machine-readable IP address. This is the job of the **Domain Name System (DNS)**, often described as "the phone book of the internet."
+
+The lookup happens in stages:
+
+1. **Browser cache** — the browser first checks whether it already knows the IP address for this domain from a recent visit.
+2. **OS cache** — if not, the operating system checks its own local DNS cache.
+3. **Recursive resolver** — if it's still not found, the request goes out to a DNS resolver, usually run by your ISP or a public service like Google (8.8.8.8) or Cloudflare (1.1.1.1).
+4. **Root → TLD → Authoritative servers** — the resolver queries a root DNS server, which points it to the `.com` top-level-domain server, which in turn points it to Google's authoritative name server, which finally returns the actual IP address.
+
+Once resolved, that IP address is cached at several levels so the next visit is faster.
+
+## 2. TCP/IP — Establishing a Reliable Connection
+
+With an IP address in hand, your browser can now open a connection to Google's server. This happens over **TCP/IP**, the foundational protocol suite of the internet.
+
+- **IP (Internet Protocol)** handles addressing and routing — making sure packets know where to go, hopping from router to router across networks until they reach the destination.
+- **TCP (Transmission Control Protocol)** sits on top of IP and guarantees reliable, ordered, error-checked delivery of data. It does this through the famous **three-way handshake**:
+  - Client sends `SYN` ("I'd like to connect")
+  - Server responds `SYN-ACK` ("Okay, and I'd like to connect too")
+  - Client responds `ACK` ("Confirmed")
+
+Once this handshake completes, a stable, bidirectional connection exists between your browser and Google's server.
+
+## 3. Firewall — The Gatekeeper
+
+Before traffic reaches Google's actual servers, it passes through **firewalls** — both on your local machine/network and on Google's infrastructure. A firewall inspects incoming and outgoing packets and decides, based on a set of rules, whether to allow or block them.
+
+Firewalls protect against unauthorized access, filter malicious traffic, and can operate at different layers: simple packet-filtering firewalls check IP addresses and ports, while more advanced application-layer firewalls (like Web Application Firewalls, or WAFs) inspect the actual content of HTTP requests to catch things like SQL injection or cross-site scripting attempts.
+
+## 4. HTTPS/SSL — Securing the Conversation
+
+Since the URL starts with `https://`, the connection needs to be encrypted. This is done through **TLS (Transport Layer Security)**, still commonly referred to by its predecessor's name, SSL.
+
+After the TCP handshake, a **TLS handshake** takes place:
+
+1. The client sends a "Client Hello," listing supported TLS versions and cipher suites.
+2. The server responds with its digital certificate (issued by a trusted Certificate Authority), containing its public key.
+3. The client verifies the certificate's authenticity, then both sides use asymmetric cryptography to safely agree on a shared **session key**.
+4. From this point on, all communication is encrypted using that session key via fast symmetric encryption.
+
+This process ensures three things: **confidentiality** (nobody can read your data in transit), **integrity** (data can't be tampered with unnoticed), and **authentication** (you know you're really talking to Google, not an impostor).
+
+## 5. Load Balancer — Spreading the Traffic
+
+Google doesn't serve billions of requests from a single machine. Your encrypted request first arrives at a **load balancer**, whose job is to distribute incoming traffic across a large pool of servers so that no single machine is overwhelmed.
+
+Load balancers use various strategies — round robin, least connections, IP hashing, or health-check-based routing — to pick the best available server to handle your request. This also provides fault tolerance: if one server goes down, the load balancer simply routes traffic to the healthy ones, and you never notice.
+
+## 6. Web Server — The First Point of Contact
+
+Once routed, your request lands on a **web server** (technologies like Nginx or Apache are common examples, though Google runs its own custom infrastructure). The web server's core job is to receive HTTP requests and return HTTP responses.
+
+For static content (images, CSS, plain HTML files), the web server can often respond directly. But for dynamic content — like a personalized search results page — it forwards the request further, to the application layer.
+
+## 7. Application Server — Where the Logic Lives
+
+The **application server** is where the actual business logic runs. This is the layer that interprets your request, decides what needs to happen (e.g., "run this search query"), and coordinates with other services and databases to build a meaningful response.
+
+This is also typically where authentication, session handling, and request-specific processing (like ranking search results) occur, before handing a result back to the web server layer to be sent to your browser.
+
+## 8. Database — Where the Data Lives
+
+To actually generate a result, the application server usually needs data — and that means querying a **database**. Databases store structured (or unstructured) information and are optimized for fast retrieval, even at massive scale.
+
+At Google's scale, this isn't a single database but a distributed system spread across data centers worldwide, using replication and caching to serve queries in milliseconds while staying fault-tolerant and consistent.
+
+## Bringing It All Together
+
+Once the application server has the data it needs, it builds a response, which flows back through the web server, load balancer, and the encrypted TLS connection, arriving at your browser. The browser then parses the HTML, fetches additional resources (CSS, JS, images — each potentially repeating parts of this entire process), and renders the final page you see on screen.
+
+All of this — DNS resolution, TCP handshakes, firewall inspection, TLS encryption, load balancing, and coordinated work across web, application, and database servers — happens in a fraction of a second, every single time you load a page. It's a good reminder that even the simplest-looking interactions on the internet rest on a remarkably deep stack of engineering.
